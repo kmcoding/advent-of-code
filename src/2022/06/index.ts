@@ -23,11 +23,19 @@ function findMarker(dataStream: string, bufferSize: number): number {
   return marker;
 }
 
-async function solveSample() {
+async function solveSample1() {
   const data = await readInput("sample.txt");
 
   data.split("\n").forEach((line) => {
     const resultMarker = findMarker(line, 4);
+    console.log(resultMarker);
+  });
+}
+async function solveSample2() {
+  const data = await readInput("sample.txt");
+
+  data.split("\n").forEach((line) => {
+    const resultMarker = findMarker(line, 14);
     console.log(resultMarker);
   });
 }
@@ -36,15 +44,17 @@ async function solve1() {
   // eslint-disable-next-line @typescript-eslint/no-unused-vars
   const data = await readInput("input.txt");
   const resultMarker = findMarker(data, 4);
-  console.log(resultMarker);
+  console.log(`Solution #1: ${resultMarker}`);
 }
 
 async function solve2() {
   // eslint-disable-next-line @typescript-eslint/no-unused-vars
   const data = await readInput("input.txt");
-  // do magic here...
+  const resultMarker = findMarker(data, 14);
+  console.log(`Solution #2: ${resultMarker}`);
 }
 
-// solveSample();
+// solveSample1();
+// solveSample2();
 solve1();
-// solve2();
+solve2();
