@@ -1,7 +1,7 @@
 {
   "name": "aoc-2022",
-  "author": "WhiteFluffy",
-  "version": "0.0.1",
+  "author": "Kevin Maucy",
+  "version": "0.0.2",
   "license": "ISC",
   "scripts": {
     "generate": "ts-node src/generate.ts",
