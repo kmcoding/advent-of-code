@@ -1,8 +1,20 @@
-import fs from "fs";
+import fs from "fs/promises";
 
-const input = fs.readFileSync("input.txt", "utf8");
-const inputArray = input.split("\n");
+async function readInput(filename: string) {
+  return await fs.readFile(filename, "utf8");
+}
 
-inputArray.forEach((line) => {
-  // Do your magic here with each line.
-});
+async function solve1() {
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars
+  const data = await readInput("input.txt");
+  // do magic here...
+}
+
+async function solve2() {
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars
+  const data = await readInput("input.txt");
+  // do magic here...
+}
+
+solve1();
+solve2();

@@ -43,7 +43,7 @@ try {
     // Copy template file.
     fs.copyFileSync(
       path.resolve(__dirname, "template.ts"),
-      path.resolve(folderPath, "1.ts")
+      path.resolve(folderPath, "index.ts")
     );
 
     console.log(`Generated folder for year ${YEAR}, day ${day}. Good luck!`);
