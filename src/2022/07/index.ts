@@ -211,13 +211,13 @@ function solveBelow(
 
 async function solveSample1() {
   const data = await readInput("sample.txt");
-  const sumDirectories = solveBelow(data, 100000, true);
+  const sumDirectories = solveBelow(data, 100000);
   console.log(`Solution sample #1: ${sumDirectories}`);
 }
 
 async function solve1() {
   const data = await readInput("input.txt");
-  const sumDirectories = solveBelow(data, 100000, true);
+  const sumDirectories = solveBelow(data, 100000);
   console.log(`Solution #1: ${sumDirectories}`);
 }
 
@@ -226,9 +226,24 @@ async function solve2() {
   const data = await readInput("input.txt");
   const MAX_STORAGE = 70000000;
   const REQUIRED_STORAGE = 30000000;
-  console.log(`Solution #2: {}`);
+  const rootDir = parseCommands(data.trim().split("\n"));
+
+  const leftSpace = MAX_STORAGE - rootDir.getTotalSize();
+  const allDirs = rootDir.getAllDirs();
+
+  const deltaStorage = REQUIRED_STORAGE - leftSpace;
+
+  let filteredDirs = allDirs.filter(
+    (dir) => dir.getTotalSize() >= deltaStorage
+  );
+  filteredDirs = filteredDirs.sort(
+    (a, b) => a.getTotalSize() - b.getTotalSize()
+  );
+  const finalDir = filteredDirs[0];
+
+  console.log(`Solution #2: ${finalDir.dirName} | ${finalDir.getTotalSize()}`);
 }
 
-// solveSample1();
-// solve1();
+solveSample1();
+solve1();
 solve2();
