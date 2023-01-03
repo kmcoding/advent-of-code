@@ -94,6 +94,73 @@ class Matrix {
     });
   }
 
+  getBestScenicScore(): number {
+    const result = this.rows
+      .map((row, rowIndex) => {
+        return row
+          .map((col, colIndex) => {
+            return this.getScenicScore(rowIndex, colIndex);
+          })
+          .reduce((agg, curr) => {
+            return agg > curr ? agg : curr;
+          });
+      })
+      .reduce((agg, curr) => {
+        return agg > curr ? agg : curr;
+      });
+
+    return result;
+  }
+
+  getScenicScore(row: number, col: number) {
+    type Direction = "up" | "left" | "down" | "right";
+    const scenicScores = ["up", "left", "down", "right"].map((dir) => {
+      return this.getScenicScoreDirection(row, col, dir as Direction);
+    });
+
+    return scenicScores.reduce((agg, curr) => agg * curr);
+  }
+
+  getScenicScoreDirection(
+    row: number,
+    col: number,
+    dir: "up" | "left" | "down" | "right"
+  ): number {
+    let checkArray: Array<number>;
+
+    switch (dir) {
+      case "up":
+        checkArray = this.col(col)
+          .slice(0, row + 1)
+          .reverse();
+        break;
+      case "left":
+        checkArray = this.row(row)
+          .slice(0, col + 1)
+          .reverse();
+        break;
+      case "down":
+        checkArray = this.col(col).slice(row);
+        break;
+      case "right":
+        checkArray = this.row(row).slice(col);
+        break;
+    }
+
+    if (checkArray.length === 1) return 0;
+
+    let scenicScore = 0;
+    const treeHeight = checkArray[0];
+    for (let index = 1; index < checkArray.length; index++) {
+      const element = checkArray[index];
+      scenicScore = index;
+      if (element >= treeHeight) {
+        break;
+      }
+    }
+    return scenicScore;
+  }
+
   getVisibleCount(): number {
     return this.getTotalCount(this.combineColsRowsIndices());
   }
@@ -194,39 +261,37 @@ function parseMatrix(matrixString: string): Matrix {
 async function solveSample1() {
   const data = (await readInput("sample.txt")).trim();
   const matrix = parseMatrix(data);
-  matrix.print();
-
-  // const checkedRows = matrix.checkRows();
-  // console.log(checkedRows);
-  // const checkedCols = matrix.checkCols();
-  // console.log(checkedCols);
+  // matrix.print();
 
   const numVisible = matrix.getVisibleCount();
-  console.log(`\nSolution sample #1: ${numVisible}`);
-  matrix.printVisible();
+  console.log(`Solution sample #1: ${numVisible}`);
+  // matrix.printVisible();
 }
 async function solve1() {
-  // eslint-disable-next-line @typescript-eslint/no-unused-vars
   const data = (await readInput("input.txt")).trim();
   const matrix = parseMatrix(data);
-  matrix.print();
-
-  // const checkedRows = matrix.checkRows();
-  // console.log(checkedRows);
-  // const checkedCols = matrix.checkCols();
-  // console.log(checkedCols);
+  // matrix.print();
 
   const numVisible = matrix.getVisibleCount();
-  console.log(`\nSolution #1: ${numVisible}`);
-  matrix.printVisible();
+  console.log(`Solution #1: ${numVisible}`);
+  // matrix.printVisible();
 }
 
-async function solve2() {
-  // eslint-disable-next-line @typescript-eslint/no-unused-vars
+async function solveSample2() {
   const data = (await readInput("sample.txt")).trim();
   const matrix = parseMatrix(data);
+  // matrix.print();
+
+  console.log(`Solution sample #2: ${matrix.getBestScenicScore()}`);
+}
+async function solve2() {
+  const data = (await readInput("input.txt")).trim();
+  const matrix = parseMatrix(data);
+
+  console.log(`Solution #2: ${matrix.getBestScenicScore()}`);
 }
 
-// solveSample1();
+solveSample1();
 solve1();
-// solve2();
+solveSample2();
+solve2();
