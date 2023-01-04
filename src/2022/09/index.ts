@@ -28,17 +28,24 @@ const MOVE_MAPPING: {
 };
 
 class Knot {
-  readonly symbol: "H" | "T";
-  readonly parent?: Knot;
-  readonly history: Array<Vector2d>;
+  symbol: string;
+  parent?: Knot;
+  history: Array<Vector2d>;
   pos: Vector2d;
+  readonly startPos: Vector2d;
 
-  constructor(symbol: "H" | "T", parent?: Knot, startPos?: Vector2d) {
+  constructor(symbol: string, parent?: Knot, startPos?: Vector2d) {
     this.symbol = symbol;
     this.parent = parent;
     const firstPos = startPos ?? { x: 0, y: 0 };
+    this.startPos = firstPos;
     this.history = [firstPos];
     this.pos = firstPos;
+  }
+
+  reset() {
+    this.pos = this.startPos;
+    this.history = [this.startPos];
   }
 
   getUniqueVisits(): Array<Vector2d> {
@@ -80,11 +87,14 @@ class Knot {
         if (Math.abs(distanceVector.x) > 1 || Math.abs(distanceVector.y) > 1) {
           // we need to move!
           const moveVector: Vector2d = {
-            x: Math.round(distanceVector.x / 2),
             // the direction of Math.round() is always +∞:
             // https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Math/round#description
             // Solution to this problem:
             // https://stackoverflow.com/a/71647883
+            x:
+              distanceVector.x < 0
+                ? -Math.round(-(distanceVector.x / 2))
+                : Math.round(distanceVector.x / 2),
             y:
               distanceVector.y < 0
                 ? -Math.round(-(distanceVector.y / 2))
@@ -120,35 +130,29 @@ function freeze(time: number) {
 class RopeSimulation {
   public actions: Array<Step>;
   public actors: Array<Knot>;
-  public actorsRenderOrder: Array<Knot>;
   public finished: boolean;
   public stepIndex: number;
   public centerOffset?: Vector2d;
   public boardDimensions?: Vector2d;
 
   constructor(actions: Array<Step>);
-  constructor(
-    actions: Array<Step>,
-    centerOffset: Vector2d,
-    boardDimensions: Vector2d
-  );
-  constructor(
-    actions: Array<Step>,
-    centerOffset?: Vector2d,
-    boardDimensions?: Vector2d
-  ) {
+  constructor(actions: Array<Step>, actors: Array<Knot>);
+  constructor(actions: Array<Step>, actors?: Array<Knot>) {
     this.actions = actions;
     this.stepIndex = 0;
     this.finished = false;
 
     // initialize the two actors for this puzzle
-    const headKnot = new Knot("H");
-    const tailKnot = new Knot("T", headKnot);
-    this.actors = [headKnot, tailKnot];
-    this.actorsRenderOrder = [tailKnot, headKnot];
+    if (actors !== undefined) {
+      this.actors = actors;
+    } else {
+      const headKnot = new Knot("H");
+      const tailKnot = new Knot("T", headKnot);
+      this.actors = [headKnot, tailKnot];
+    }
 
-    this.centerOffset = centerOffset;
-    this.boardDimensions = boardDimensions;
+    // this.centerOffset = centerOffset;
+    // this.boardDimensions = boardDimensions;
     // if (centerOffset !== undefined && boardDimensions !== undefined) {
     //   this.centerOffset = centerOffset;
     //   this.boardDimensions = boardDimensions;
@@ -160,10 +164,11 @@ class RopeSimulation {
     this.finished = false;
 
     // initialize the two actors for this puzzle
-    const headKnot = new Knot("H");
-    const tailKnot = new Knot("T", headKnot);
-    this.actors = [headKnot, tailKnot];
-    this.actorsRenderOrder = [tailKnot, headKnot];
+
+    // const headKnot = new Knot("H");
+    // const tailKnot = new Knot("T", headKnot);
+    // this.actors = [headKnot, tailKnot];
+    this.actors.forEach((actor) => actor.reset());
   }
 
   private moveActors(step: Step) {
@@ -215,13 +220,16 @@ class RopeSimulation {
       symbolsToDraw.push(startSymbol);
 
       // place the actors on the board
-      this.actorsRenderOrder.forEach((actor) => {
-        symbolsToDraw.push({
-          x: actor.pos.x - startOffset.x,
-          y: actor.pos.y - startOffset.y,
-          symbol: actor.symbol,
+      this.actors
+        .slice()
+        .reverse()
+        .forEach((actor) => {
+          symbolsToDraw.push({
+            x: actor.pos.x - startOffset.x,
+            y: actor.pos.y - startOffset.y,
+            symbol: actor.symbol,
+          });
         });
-      });
 
       // render all symbols on the board
       symbolsToDraw.forEach((s) => {
@@ -336,20 +344,41 @@ function parseStepData(stepData: Array<string>): Array<Step> {
 async function solveSample1() {
   const stepData = (await readInput("sample.txt")).trim().split("\n");
   const parsedSteps = parseStepData(stepData);
-  // console.log(parsedSteps);
 
   const simulation = new RopeSimulation(parsedSteps);
-  simulation.simulate(true, 10);
-  console.log(simulation.actors[1].getUniqueVisits());
+  // simulation.simulate(true, 200);
+  simulation.simulate(false);
+  const numUniqueVisits = simulation.actors[1].getUniqueVisits().length;
+  console.log(`Solution sample #1: ${numUniqueVisits}`);
+  // console.log(simulation.centerOffset);
+  // console.log(simulation.boardDimensions);
 }
 async function solve1() {
-  const data = await readInput("input.txt");
+  const stepData = (await readInput("input.txt")).trim().split("\n");
+  const parsedSteps = parseStepData(stepData);
+
+  const simulation = new RopeSimulation(parsedSteps);
+  simulation.simulate(false);
+  const numUniqueVisits = simulation.actors[1].getUniqueVisits().length;
+  console.log(`Solution #1: ${numUniqueVisits}`);
 }
 
 async function solve2() {
-  const data = await readInput("input.txt");
+  const stepData = (await readInput("input.txt")).trim().split("\n");
+  const parsedSteps = parseStepData(stepData);
+  const knotSymbols = ["H", "1", "2", "3", "4", "5", "6", "7", "8", "9"];
+  let prevKnot: Knot;
+  const knots = knotSymbols.map((s) => {
+    const k = new Knot(s, prevKnot);
+    prevKnot = k;
+    return k;
+  });
+  const simulation = new RopeSimulation(parsedSteps, knots);
+  simulation.simulate(false);
+  const numUniqueVisits = knots[knots.length - 1].getUniqueVisits().length;
+  console.log(`Solution #2: ${numUniqueVisits}`);
 }
 
 solveSample1();
-// solve1();
-// solve2();
+solve1();
+solve2();
