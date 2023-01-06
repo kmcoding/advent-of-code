@@ -4,17 +4,19 @@ async function readInput(filename: string) {
   return await fs.readFile(filename, "utf8");
 }
 
-async function solve1() {
+async function solve1(filename: string) {
   // eslint-disable-next-line @typescript-eslint/no-unused-vars
-  const data = await readInput("input.txt");
+  const data = await readInput(filename);
   // do magic here...
 }
 
-async function solve2() {
+async function solve2(filename: string) {
   // eslint-disable-next-line @typescript-eslint/no-unused-vars
-  const data = await readInput("input.txt");
+  const data = await readInput(filename);
   // do magic here...
 }
 
-solve1();
-solve2();
+solve1("sample.txt");
+// solve1("input.txt");
+// solve2("sample.txt");
+// solve2("input.txt");
