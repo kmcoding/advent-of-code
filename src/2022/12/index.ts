@@ -4,7 +4,7 @@ async function readInput(filename: string) {
   return await fs.readFile(filename, "utf8");
 }
 
-type Node = {
+type PathNode = {
   id: number;
   x: number;
   y: number;
@@ -12,11 +12,12 @@ type Node = {
   f_score: number;
   g_score: number;
   h_score: number;
+  parent?: PathNode;
 };
 
-type PathNode = Node & { parent?: Node };
+// type PathNode = PathNode & { parent?: PathNode };
 
-function createHeightmap(dataString: string): Array<Array<Node>> {
+function createHeightmap(dataString: string): Array<Array<PathNode>> {
   const LOWER_A = "a".charCodeAt(0);
   const LOWER_Z = "z".charCodeAt(0);
   const CHAR_CODE_DELTA = 0 - LOWER_A;
@@ -63,7 +64,7 @@ function createHeightmap(dataString: string): Array<Array<Node>> {
   return heightMap;
 }
 
-function createGraph(heightMap: Array<Array<Node>>): Graph {
+function createGraph(heightMap: Array<Array<PathNode>>): Graph {
   const numNodes = heightMap.reduce((agg, curr) => agg + curr.length, 0);
 
   const theGraph = new Graph(numNodes);
@@ -110,15 +111,15 @@ function createGraph(heightMap: Array<Array<Node>>): Graph {
   return theGraph;
 }
 
-function manhattanDistance(from: Node, to: Node): number {
+function manhattanDistance(from: PathNode, to: PathNode): number {
   const d1 = Math.abs(from.x - to.x);
   const d2 = Math.abs(from.y - to.y);
   return d1 + d2;
 }
 
 class Graph {
-  public readonly adjacencies: Array<Array<Node>>;
-  public readonly nodes: Array<Node> = [];
+  public readonly adjacencies: Array<Array<PathNode>>;
+  public readonly nodes: Array<PathNode> = [];
 
   constructor(numNodes: number) {
     this.adjacencies = [];
@@ -127,7 +128,7 @@ class Graph {
     }
   }
 
-  addEdge(from: Node, to: Node) {
+  addEdge(from: PathNode, to: PathNode) {
     if (!this.nodes.map((e) => e.id).includes(from.id)) {
       this.nodes.push(from);
       this.nodes.sort((a, b) => a.id - b.id);
@@ -136,6 +137,9 @@ class Graph {
   }
 
   shortestPath(start: number, end: number): Array<PathNode> {
+    // initialize all node's parents to be undefined at start!
+    this.nodes.forEach((n) => (n.parent = undefined));
+
     const openSet: Array<PathNode> = [];
     const closedSet: Array<PathNode> = [];
 
@@ -179,12 +183,12 @@ class Graph {
         const neighbor = neighbors[index];
         if (closedSet.includes(neighbor)) continue;
 
-        neighbor.parent = currentNode;
         neighbor.g_score = currentNode.g_score + 1;
         neighbor.h_score = manhattanDistance(neighbor, endNode);
         neighbor.f_score = neighbor.g_score + neighbor.h_score;
 
         if (!openSet.includes(neighbor)) {
+          neighbor.parent = currentNode;
           openSet.push(neighbor);
         } else {
           const existingNeighbor = openSet.find((e) => e === neighbor);
@@ -196,7 +200,8 @@ class Graph {
       }
     }
 
-    throw new Error(`No path to ${endNode} exists!`);
+    // throw new Error(`No path to ${endNode} exists!`);
+    return [];
   }
 }
 
@@ -231,13 +236,41 @@ async function solve1(filename: string) {
   console.log(`Solution #1 for ${filename}: ${optimalPath.length}`);
 }
 
+function getAllNodeIds(
+  height: number,
+  heightMap: Array<Array<PathNode>>
+): Array<number> {
+  const ret: Array<number> = [];
+  for (let rowIndex = 0; rowIndex < heightMap.length; rowIndex++) {
+    const row = heightMap[rowIndex];
+    for (let colIndex = 0; colIndex < row.length; colIndex++) {
+      const node = row[colIndex];
+      if (node.z === height) ret.push(node.id);
+    }
+  }
+  return ret;
+}
+
 async function solve2(filename: string) {
-  // eslint-disable-next-line @typescript-eslint/no-unused-vars
-  const data = await readInput(filename);
-  // do magic here...
+  const data = (await readInput(filename)).trim();
+  const heightData = createHeightmap(data);
+  const graph = createGraph(heightData);
+  // first start node is an S, need to still get it
+  const [startNode, endNode] = getStartEndNodesIds(data);
+  // add all other a nodes
+  const allStartPoints = getAllNodeIds(0, heightData);
+  const allPathLengths = allStartPoints.map((start) => {
+    const shortestPath = graph.shortestPath(start, endNode);
+    // console.log(`startNode: ${start} | length: ${shortestPath.length}`);
+    return shortestPath.length ? shortestPath.length : Infinity;
+  });
+  const shortestPath = allPathLengths.reduce((agg, curr) =>
+    agg < curr ? agg : curr
+  );
+  console.log(`Solution #2 for ${filename}: ${shortestPath}`);
 }
 
 solve1("sample.txt");
 solve1("input.txt");
-// solve2("sample.txt");
-// solve2("input.txt");
+solve2("sample.txt");
+solve2("input.txt");
