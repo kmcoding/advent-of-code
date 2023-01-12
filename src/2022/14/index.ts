@@ -9,6 +9,8 @@ type Vector2d = {
   y: number;
 };
 
+type Coordinate = { x: number } | { y: number };
+
 const ENTRY_POINT: Vector2d = { x: 500, y: 0 };
 
 function freeze(milliseconds: number) {
@@ -17,42 +19,79 @@ function freeze(milliseconds: number) {
 }
 
 class Simulation {
-  public readonly grid: Array<Array<string>>;
-  public readonly width: number;
-  public readonly height: number;
-  private readonly offsetX: number;
+  public grid: Array<Array<string>>;
+  public width: number;
+  public height: number;
+  private offsetX: number;
+  private infinitePlane: boolean;
 
-  constructor(rockFormations: Array<Array<Vector2d>>) {
+  constructor(
+    rockFormations: Array<Array<Vector2d>>,
+    abyss = true,
+    addInfinitePlane = false
+  ) {
     // find bottom left and right borders of the grid
     // to extract the offset X value
     const [bottomLeft, bottomRight] = this.findGridBorders(rockFormations);
-    this.offsetX = bottomLeft.x - 1; // - 1 for abyss!
-    this.width = bottomRight.x - bottomLeft.x + 1 + 2; // + 2 for abyss!
-    this.height = bottomLeft.y + 1;
+    this.offsetX = bottomLeft.x - (abyss ? 1 : 0); // - 1 for abyss!
+    this.width = bottomRight.x - bottomLeft.x + 1 + (abyss ? 2 : 0); // + 2 for abyss!
+    this.height = bottomLeft.y + 1 + (addInfinitePlane ? 2 : 0);
+    this.infinitePlane = addInfinitePlane;
 
     // now create the grid data by tracing the
     // rock formation paths for each rock
     this.grid = this.createGrid(rockFormations);
   }
 
+  // addPlane(level: Coordinate) {
+
+  // }
+
   getNextSandPosition(unitOfSand: Vector2d): Vector2d | undefined {
+    const xGridIndex = unitOfSand.x - this.offsetX;
     // move down if possible
-    if (this.grid[unitOfSand.y + 1][unitOfSand.x - this.offsetX] === ".") {
+    if (this.grid[unitOfSand.y + 1][xGridIndex] === ".") {
       return { x: unitOfSand.x, y: unitOfSand.y + 1 };
-    } else if (
-      this.grid[unitOfSand.y + 1][unitOfSand.x - this.offsetX - 1] === "."
-    ) {
+    }
+
+    // check if left overflow -> enlarge grid
+    if (xGridIndex - 1 === -1) {
+      for (let index = 0; index < this.grid.length; index++) {
+        // prepend an item to each row in the grid
+        if (this.infinitePlane && index === this.grid.length - 1) {
+          this.grid[index].splice(0, 0, "#");
+        } else {
+          this.grid[index].splice(0, 0, ".");
+        }
+      }
+      this.offsetX -= 1;
+      this.width += 1;
+    }
+    if (this.grid[unitOfSand.y + 1][xGridIndex - 1] === ".") {
       // move diagonal left
       return { x: unitOfSand.x - 1, y: unitOfSand.y + 1 };
-    } else if (
-      this.grid[unitOfSand.y + 1][unitOfSand.x - this.offsetX + 1] === "."
-    ) {
+    }
+
+    // check if right overflow -> enlarge grid
+    if (xGridIndex + 1 === this.width) {
+      for (let index = 0; index < this.grid.length; index++) {
+        // prepend an item to each row in the grid
+        if (this.infinitePlane && index === this.grid.length - 1) {
+          this.grid[index].push("#");
+        } else {
+          this.grid[index].push(".");
+        }
+      }
+      // this.offsetX -= 1;
+      this.width += 1;
+    }
+    if (this.grid[unitOfSand.y + 1][xGridIndex + 1] === ".") {
       // move diagonal right
       return { x: unitOfSand.x + 1, y: unitOfSand.y + 1 };
-    } else {
-      // no possible move, come to rest
-      return undefined;
     }
+
+    // no possible move, come to rest
+    return undefined;
   }
 
   isInAbyss(pos: Vector2d): boolean {
@@ -60,9 +99,10 @@ class Simulation {
     return false;
   }
 
-  simulate(animate = true, sleep = 50): number {
+  simulate(animate = true, sleep = 100): number {
     // initialize counter value
     let unitsOfSand = 0;
+
     let fallingIntoAbyss = false;
     while (!fallingIntoAbyss) {
       // create unit of sand
@@ -70,6 +110,13 @@ class Simulation {
         x: ENTRY_POINT.x,
         y: ENTRY_POINT.y,
       };
+
+      // check if the entrypoint is already filled
+      // => exit condition Part 2
+      if (this.grid[unitOfSand.y][unitOfSand.x - this.offsetX] === "o") {
+        break;
+      }
+
       let previousPos: Vector2d = unitOfSand;
 
       // add unit of sand to this grid
@@ -80,6 +127,9 @@ class Simulation {
       // let fall down until come to rest
       while (!resting) {
         // check the next movement position
+        // Part 2: potentially enlarge the current grid, depending
+        // on whether a unit of sand is overflowing to the left
+        // or to the right
         const nextPos = this.getNextSandPosition(unitOfSand);
 
         // exit if undefined
@@ -88,6 +138,7 @@ class Simulation {
           break;
         } else if (this.isInAbyss(nextPos)) {
           fallingIntoAbyss = true;
+          this.grid[previousPos.y][previousPos.x - this.offsetX] = ".";
           break;
         }
 
@@ -151,6 +202,11 @@ class Simulation {
       }
     });
 
+    // add the infinite plane
+    if (this.infinitePlane) {
+      grid[grid.length - 1] = "#".repeat(this.width).split("");
+    }
+
     return grid;
   }
 
@@ -209,24 +265,27 @@ function parseRow(row: string): Array<Vector2d> {
   });
 }
 
-async function solve1(filename: string) {
+async function solve1(filename: string, animate = false) {
   const data = (await readInput(filename)).trim();
   const rockFormations = data.split("\n").map((row) => parseRow(row));
-  // console.log(rockFormations);
 
-  const simulation = new Simulation(rockFormations);
-  // simulation.render();
-  const solution = simulation.simulate(false);
+  const simulation = new Simulation(rockFormations, true, false);
+  const solution = simulation.simulate(animate);
 
   console.log(`Solution #1 for ${filename}: ${solution}`);
 }
 
-async function solve2(filename: string) {
+async function solve2(filename: string, animate = false) {
   const data = (await readInput(filename)).trim();
-  console.log(`Solution #2 for ${filename}: `);
+  const rockFormations = data.split("\n").map((row) => parseRow(row));
+
+  const simulation = new Simulation(rockFormations, false, true);
+  const solution = simulation.simulate(animate);
+
+  console.log(`Solution #2 for ${filename}: ${solution}`);
 }
 
-solve1("sample.txt");
-solve1("input.txt");
-// solve2("sample.txt");
-// solve2("input.txt");
+// solve1("sample.txt", false);
+// solve1("input.txt", false);
+solve2("sample.txt", false);
+solve2("input.txt", false);
